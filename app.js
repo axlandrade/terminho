@@ -305,7 +305,14 @@ function renderTerm() {
       tile.className = "letter-tile";
       tile.textContent = guess[col] || "";
       if (guess[col]) tile.classList.add("is-filled");
-      if (evaluation[col]) tile.classList.add(evaluation[col]);
+      if (evaluation[col]) {
+        tile.classList.add(evaluation[col]);
+        tile.setAttribute(
+          "aria-label",
+          `${guess[col]}: ${termResultLabels[evaluation[col]]}`,
+        );
+        tile.title = termResultLabels[evaluation[col]];
+      }
       board.append(tile);
     }
   }
@@ -319,7 +326,35 @@ function renderTerm() {
     status.textContent = "Tente descobrir a palavra do dia.";
   }
 
+  renderTermFeedback();
   renderKeyboard();
+}
+
+const termResultLabels = {
+  correct: "letra no lugar certo",
+  present: "letra existe, mas esta em outro lugar",
+  absent: "letra nao esta na palavra",
+};
+
+function renderTermFeedback() {
+  const feedback = $("#term-feedback");
+  const { guesses, answer } = state.term;
+
+  if (guesses.length === 0) {
+    feedback.textContent = "Depois de enviar, cada letra ganha uma cor.";
+    return;
+  }
+
+  const lastGuess = guesses.at(-1);
+  const counts = evaluateGuess(lastGuess, answer).reduce(
+    (summary, result) => {
+      summary[result] += 1;
+      return summary;
+    },
+    { correct: 0, present: 0, absent: 0 },
+  );
+
+  feedback.textContent = `Ultima: ${counts.correct} no lugar, ${counts.present} em outro lugar, ${counts.absent} nao tem.`;
 }
 
 function renderKeyboard() {
