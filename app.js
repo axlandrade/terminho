@@ -207,6 +207,7 @@ const CONEXO_PUZZLES = [
 const TERM_ROWS = 6;
 const TERM_COLS = 5;
 const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+const TERM_STORAGE_KEY = "terminho:termooo:v1";
 
 const state = {
   currentGame: "termooo",
@@ -236,6 +237,26 @@ function daySeed(offset = 0) {
 function pickDaily(list, offset = 0) {
   const seed = daySeed(offset);
   return list[((seed % list.length) + list.length) % list.length];
+}
+
+function localDayKey(offset = 0) {
+  const now = new Date();
+  const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+  const year = day.getFullYear();
+  const month = String(day.getMonth() + 1).padStart(2, "0");
+  const date = String(day.getDate()).padStart(2, "0");
+  return `${year}-${month}-${date}`;
+}
+
+function nextMidnightLabel() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const diff = Math.max(0, next - now);
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.ceil((diff % 3600000) / 60000);
+
+  if (hours <= 0) return `${minutes} min`;
+  return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
 }
 
 function shuffle(items, salt = 0) {
@@ -281,15 +302,70 @@ function initTabs() {
 }
 
 function initTerm(offset = 0) {
+  const dayKey = localDayKey(offset);
   state.term = {
     answer: pickDaily(TERM_WORDS, offset),
+    dayKey,
     offset,
     guesses: [],
     current: "",
     done: false,
     keyStatus: {},
   };
+
+  if (offset === 0) {
+    restoreTermProgress();
+  }
+
   renderTerm();
+}
+
+function restoreTermProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TERM_STORAGE_KEY) || "null");
+    if (!saved || saved.dayKey !== state.term.dayKey) return;
+    if (!Array.isArray(saved.guesses)) return;
+
+    state.term.guesses = saved.guesses
+      .map(normalize)
+      .filter((guess) => guess.length === TERM_COLS)
+      .slice(0, TERM_ROWS);
+    state.term.keyStatus = buildTermKeyStatus(state.term.guesses, state.term.answer);
+    state.term.done =
+      state.term.guesses.includes(state.term.answer) ||
+      state.term.guesses.length >= TERM_ROWS ||
+      saved.done === true;
+  } catch {
+    localStorage.removeItem(TERM_STORAGE_KEY);
+  }
+}
+
+function saveTermProgress() {
+  try {
+    localStorage.setItem(
+      TERM_STORAGE_KEY,
+      JSON.stringify({
+        dayKey: state.term.dayKey,
+        guesses: state.term.guesses,
+        done: state.term.done,
+      }),
+    );
+  } catch {
+    showToast("Nao consegui salvar o progresso neste navegador.");
+  }
+}
+
+function buildTermKeyStatus(guesses, answer) {
+  return guesses.reduce((keyStatus, guess) => {
+    evaluateGuess(guess, answer).forEach((result, index) => {
+      const letter = guess[index];
+      const previous = keyStatus[letter];
+      if (previous === "correct") return;
+      if (previous === "present" && result === "absent") return;
+      keyStatus[letter] = result;
+    });
+    return keyStatus;
+  }, {});
 }
 
 function renderTerm() {
@@ -319,9 +395,9 @@ function renderTerm() {
 
   const status = $("#term-status");
   if (done && guesses.at(-1) === answer) {
-    status.textContent = `Acertou em ${guesses.length} tentativa${guesses.length === 1 ? "" : "s"}.`;
+    status.textContent = `Acertou em ${guesses.length} tentativa${guesses.length === 1 ? "" : "s"}. Proxima palavra em ${nextMidnightLabel()}.`;
   } else if (done) {
-    status.textContent = `A palavra era ${answer}.`;
+    status.textContent = `A palavra era ${answer}. Proxima palavra em ${nextMidnightLabel()}.`;
   } else {
     status.textContent = "Tente descobrir a palavra do dia.";
   }
@@ -385,6 +461,7 @@ function createKey(label, extraClass = "", displayLabel = label, accessibleLabel
   key.className = `word-key ${extraClass}`.trim();
   key.textContent = displayLabel;
   key.setAttribute("aria-label", accessibleLabel);
+  key.disabled = state.term.done;
   key.addEventListener("click", () => handleTermInput(label));
 
   const status = state.term.keyStatus[label];
@@ -417,7 +494,10 @@ function evaluateGuess(guess, answer) {
 
 function handleTermInput(input) {
   const term = state.term;
-  if (term.done) return;
+  if (term.done) {
+    showToast("Acabou por hoje. Volte depois da 00:00.");
+    return;
+  }
 
   if (input === "ENTER") {
     submitTermGuess();
@@ -461,6 +541,7 @@ function submitTermGuess() {
     term.done = true;
   }
 
+  saveTermProgress();
   renderTerm();
 }
 
@@ -720,7 +801,6 @@ function bindEvents() {
     }
   });
 
-  $("#term-reset").addEventListener("click", () => initTerm(state.term.offset + 1));
   $("#term-share").addEventListener("click", shareTerm);
   $("#context-form").addEventListener("submit", submitContext);
   $("#context-reset").addEventListener("click", () => initContext(state.context.offset + 1));

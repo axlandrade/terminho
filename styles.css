@@ -294,6 +294,11 @@ h1 {
     background 120ms ease;
 }
 
+.word-key:disabled {
+  cursor: not-allowed;
+  transform: none;
+}
+
 .word-key.is-wide {
   min-width: 68px;
   padding: 0 10px;
