@@ -7,6 +7,7 @@ Minijogos de palavras em portugues para jogar a dois:
 - **Conexo**: encontre 4 grupos de 4 palavras conectadas.
 
 O projeto e estatico, sem backend e sem dependencias de build. Isso deixa o deploy gratuito bem simples.
+A cada recarregamento, os jogos sorteiam novos desafios aleatorios.
 
 ## Rodar com Docker
 

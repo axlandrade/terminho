@@ -207,7 +207,6 @@ const CONEXO_PUZZLES = [
 const TERM_ROWS = 6;
 const TERM_COLS = 5;
 const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
-const TERM_STORAGE_KEY = "terminho:termooo:v1";
 
 const state = {
   currentGame: "termooo",
@@ -227,42 +226,24 @@ function normalize(value) {
     .toUpperCase();
 }
 
-function daySeed(offset = 0) {
-  const start = new Date(2024, 0, 1);
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
-  return Math.floor((today - start) / 86400000);
+function randomIndex(length) {
+  if (window.crypto?.getRandomValues) {
+    const values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    return values[0] % length;
+  }
+
+  return Math.floor(Math.random() * length);
 }
 
-function pickDaily(list, offset = 0) {
-  const seed = daySeed(offset);
-  return list[((seed % list.length) + list.length) % list.length];
-}
-
-function localDayKey(offset = 0) {
-  const now = new Date();
-  const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
-  const year = day.getFullYear();
-  const month = String(day.getMonth() + 1).padStart(2, "0");
-  const date = String(day.getDate()).padStart(2, "0");
-  return `${year}-${month}-${date}`;
-}
-
-function nextMidnightLabel() {
-  const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-  const diff = Math.max(0, next - now);
-  const hours = Math.floor(diff / 3600000);
-  const minutes = Math.ceil((diff % 3600000) / 60000);
-
-  if (hours <= 0) return `${minutes} min`;
-  return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
+function pickRandom(list) {
+  return list[randomIndex(list.length)];
 }
 
 function shuffle(items, salt = 0) {
   const copy = [...items];
   const saltNumber = Number.isFinite(salt) ? Math.trunc(Math.abs(salt)) : 0;
-  let seed = (daySeed(0) + saltNumber + 97) % 233280;
+  let seed = (randomIndex(233280) + saltNumber + 97) % 233280;
   for (let index = copy.length - 1; index > 0; index -= 1) {
     seed = (seed * 9301 + 49297) % 233280;
     const swapIndex = seed % (index + 1);
@@ -301,58 +282,16 @@ function initTabs() {
   }
 }
 
-function initTerm(offset = 0) {
-  const dayKey = localDayKey(offset);
+function initTerm() {
   state.term = {
-    answer: pickDaily(TERM_WORDS, offset),
-    dayKey,
-    offset,
+    answer: pickRandom(TERM_WORDS),
     guesses: [],
     current: "",
     done: false,
     keyStatus: {},
   };
 
-  if (offset === 0) {
-    restoreTermProgress();
-  }
-
   renderTerm();
-}
-
-function restoreTermProgress() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(TERM_STORAGE_KEY) || "null");
-    if (!saved || saved.dayKey !== state.term.dayKey) return;
-    if (!Array.isArray(saved.guesses)) return;
-
-    state.term.guesses = saved.guesses
-      .map(normalize)
-      .filter((guess) => guess.length === TERM_COLS)
-      .slice(0, TERM_ROWS);
-    state.term.keyStatus = buildTermKeyStatus(state.term.guesses, state.term.answer);
-    state.term.done =
-      state.term.guesses.includes(state.term.answer) ||
-      state.term.guesses.length >= TERM_ROWS ||
-      saved.done === true;
-  } catch {
-    localStorage.removeItem(TERM_STORAGE_KEY);
-  }
-}
-
-function saveTermProgress() {
-  try {
-    localStorage.setItem(
-      TERM_STORAGE_KEY,
-      JSON.stringify({
-        dayKey: state.term.dayKey,
-        guesses: state.term.guesses,
-        done: state.term.done,
-      }),
-    );
-  } catch {
-    showToast("Nao consegui salvar o progresso neste navegador.");
-  }
 }
 
 function buildTermKeyStatus(guesses, answer) {
@@ -395,11 +334,11 @@ function renderTerm() {
 
   const status = $("#term-status");
   if (done && guesses.at(-1) === answer) {
-    status.textContent = `Acertou em ${guesses.length} tentativa${guesses.length === 1 ? "" : "s"}. Proxima palavra em ${nextMidnightLabel()}.`;
+    status.textContent = `Acertou em ${guesses.length} tentativa${guesses.length === 1 ? "" : "s"}. Recarregue para sortear outra palavra.`;
   } else if (done) {
-    status.textContent = `A palavra era ${answer}. Proxima palavra em ${nextMidnightLabel()}.`;
+    status.textContent = `A palavra era ${answer}. Recarregue para sortear outra palavra.`;
   } else {
-    status.textContent = "Tente descobrir a palavra do dia.";
+    status.textContent = "Tente descobrir a palavra sorteada.";
   }
 
   renderTermFeedback();
@@ -495,7 +434,7 @@ function evaluateGuess(guess, answer) {
 function handleTermInput(input) {
   const term = state.term;
   if (term.done) {
-    showToast("Acabou por hoje. Volte depois da 00:00.");
+    showToast("Rodada encerrada. Recarregue para sortear outra palavra.");
     return;
   }
 
@@ -541,7 +480,6 @@ function submitTermGuess() {
     term.done = true;
   }
 
-  saveTermProgress();
   renderTerm();
 }
 
@@ -562,11 +500,10 @@ function shareTerm() {
     .catch(() => showToast("Nao consegui copiar automaticamente."));
 }
 
-function initContext(offset = 0) {
-  const puzzle = pickDaily(CONTEXT_PUZZLES, offset);
+function initContext() {
+  const puzzle = pickRandom(CONTEXT_PUZZLES);
   state.context = {
     puzzle,
-    offset,
     guesses: [],
     done: false,
     hints: 0,
@@ -667,8 +604,8 @@ function showContextHint() {
   renderContext();
 }
 
-function initConexo(offset = 0) {
-  const puzzle = pickDaily(CONEXO_PUZZLES, offset);
+function initConexo() {
+  const puzzle = pickRandom(CONEXO_PUZZLES);
   const words = shuffle(
     puzzle.groups.flatMap((group, groupIndex) =>
       group.words.map((word) => ({
@@ -676,11 +613,9 @@ function initConexo(offset = 0) {
         groupIndex,
       })),
     ),
-    offset,
   );
   state.conexo = {
     puzzle,
-    offset,
     words,
     selected: [],
     solved: [],
@@ -783,7 +718,7 @@ function submitConexo() {
 
 function shuffleConexo() {
   const conexo = state.conexo;
-  conexo.words = shuffle(conexo.words, conexo.offset + Date.now());
+  conexo.words = shuffle(conexo.words, Date.now());
   renderConexo();
 }
 
@@ -803,9 +738,9 @@ function bindEvents() {
 
   $("#term-share").addEventListener("click", shareTerm);
   $("#context-form").addEventListener("submit", submitContext);
-  $("#context-reset").addEventListener("click", () => initContext(state.context.offset + 1));
+  $("#context-reset").addEventListener("click", () => initContext());
   $("#context-hint").addEventListener("click", showContextHint);
-  $("#conexo-reset").addEventListener("click", () => initConexo(state.conexo.offset + 1));
+  $("#conexo-reset").addEventListener("click", () => initConexo());
   $("#conexo-shuffle").addEventListener("click", shuffleConexo);
   $("#conexo-submit").addEventListener("click", submitConexo);
 }
