@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Terminho: minijogos de palavras em portugues para jogar a dois."
+    />
+    <title>Terminho</title>
+    <link rel="icon" href="./assets/terminho-mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#termooo" aria-label="Terminho">
+          <img src="./assets/terminho-mark.svg" alt="" />
+          <span>Terminho</span>
+        </a>
+        <nav class="game-tabs" aria-label="Jogos">
+          <button class="tab is-active" type="button" data-game="termooo">
+            Termooo
+          </button>
+          <button class="tab" type="button" data-game="contexto">Contexto</button>
+          <button class="tab" type="button" data-game="conexo">Conexo</button>
+        </nav>
+      </header>
+
+      <main>
+        <section class="game-view is-active" id="termooo" data-view="termooo">
+          <div class="game-heading">
+            <div>
+              <p class="eyebrow">Palavra de 5 letras</p>
+              <h1>Termooo</h1>
+            </div>
+            <div class="toolbar" aria-label="Controles do Termooo">
+              <button class="icon-button" type="button" id="term-reset" title="Novo desafio">
+                <span aria-hidden="true">↻</span>
+              </button>
+              <button class="icon-button" type="button" id="term-share" title="Copiar resultado">
+                <span aria-hidden="true">▦</span>
+              </button>
+            </div>
+          </div>
+          <div class="status-line" id="term-status" role="status"></div>
+          <div class="word-board" id="term-board" aria-label="Tabuleiro do Termooo"></div>
+          <div class="keyboard" id="term-keyboard" aria-label="Teclado virtual"></div>
+        </section>
+
+        <section class="game-view" id="contexto" data-view="contexto">
+          <div class="game-heading">
+            <div>
+              <p class="eyebrow">Quente ou frio</p>
+              <h1>Contexto</h1>
+            </div>
+            <div class="toolbar" aria-label="Controles do Contexto">
+              <button class="icon-button" type="button" id="context-reset" title="Novo desafio">
+                <span aria-hidden="true">↻</span>
+              </button>
+              <button class="icon-button" type="button" id="context-hint" title="Dica">
+                <span aria-hidden="true">?</span>
+              </button>
+            </div>
+          </div>
+          <div class="context-stage">
+            <form class="guess-form" id="context-form">
+              <input
+                id="context-input"
+                type="text"
+                autocomplete="off"
+                placeholder="Digite um palpite"
+                aria-label="Palpite do Contexto"
+              />
+              <button type="submit">Enviar</button>
+            </form>
+            <div class="thermo" aria-hidden="true">
+              <div class="thermo-fill" id="context-heat"></div>
+            </div>
+          </div>
+          <div class="status-line" id="context-status" role="status"></div>
+          <ol class="guess-list" id="context-guesses" aria-label="Palpites do Contexto"></ol>
+        </section>
+
+        <section class="game-view" id="conexo" data-view="conexo">
+          <div class="game-heading">
+            <div>
+              <p class="eyebrow">4 grupos secretos</p>
+              <h1>Conexo</h1>
+            </div>
+            <div class="toolbar" aria-label="Controles do Conexo">
+              <button class="icon-button" type="button" id="conexo-reset" title="Novo desafio">
+                <span aria-hidden="true">↻</span>
+              </button>
+              <button class="icon-button" type="button" id="conexo-shuffle" title="Embaralhar">
+                <span aria-hidden="true">⇄</span>
+              </button>
+            </div>
+          </div>
+          <div class="status-line" id="conexo-status" role="status"></div>
+          <div class="mistakes" id="conexo-mistakes" aria-label="Erros restantes"></div>
+          <div class="solved-groups" id="conexo-solved"></div>
+          <div class="connection-grid" id="conexo-grid" aria-label="Palavras do Conexo"></div>
+          <button class="primary-action" type="button" id="conexo-submit">Conferir grupo</button>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
