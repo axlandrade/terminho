@@ -9,6 +9,13 @@ Minijogos de palavras em portugues para jogar a dois:
 O projeto e estatico, sem backend e sem dependencias de build. Isso deixa o deploy gratuito bem simples.
 A cada recarregamento, os jogos sorteiam novos desafios aleatorios.
 
+O dicionario do Termooo fica em `data/portuguese-dictionary.json`, gerado a partir da lista
+`br-sem-acentos.txt` do IME-USP, licenciada em CC BY:
+
+```text
+https://www.ime.usp.br/~pf/dicios/
+```
+
 ## Rodar com Docker
 
 ```bash
@@ -24,6 +31,9 @@ http://localhost:8080
 ## Rodar sem Docker
 
 Como e um app estatico, tambem da para abrir `index.html` direto no navegador.
+Nesse modo, alguns navegadores bloqueiam o carregamento do JSON local; se isso acontecer,
+o Termooo usa um dicionario menor de fallback. Para usar o dicionario completo, prefira
+Docker ou um servidor estatico local.
 
 ## Deploy gratis
 

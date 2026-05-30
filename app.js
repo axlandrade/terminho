@@ -506,11 +506,8 @@ const CONEXO_PUZZLES = [
 const TERM_ROWS = 6;
 const TERM_COLS = 5;
 const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
-const TERM_VALID_GUESSES = new Set(
-  [...TERM_WORDS, ...TERM_GUESS_WORDS]
-    .map(normalize)
-    .filter((word) => word.length === TERM_COLS),
-);
+const TERM_DICTIONARY_URL = "./data/portuguese-dictionary.json";
+let termValidGuesses = buildTermValidGuesses(TERM_GUESS_WORDS);
 
 const state = {
   currentGame: "termooo",
@@ -528,6 +525,28 @@ function normalize(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z]/g, "")
     .toUpperCase();
+}
+
+function buildTermValidGuesses(words) {
+  return new Set(
+    [...TERM_WORDS, ...words].map(normalize).filter((word) => word.length === TERM_COLS),
+  );
+}
+
+async function loadTermDictionary() {
+  try {
+    const response = await fetch(TERM_DICTIONARY_URL);
+    if (!response.ok) throw new Error(`Dictionary request failed: ${response.status}`);
+
+    const dictionary = await response.json();
+    if (!Array.isArray(dictionary.words)) {
+      throw new Error("Dictionary payload must include a words array");
+    }
+
+    termValidGuesses = buildTermValidGuesses(dictionary.words);
+  } catch (error) {
+    console.warn("Using fallback Termooo dictionary.", error);
+  }
 }
 
 function randomIndex(length) {
@@ -768,7 +787,7 @@ function submitTermGuess() {
   }
 
   const guess = term.current;
-  if (!TERM_VALID_GUESSES.has(guess)) {
+  if (!termValidGuesses.has(guess)) {
     showToast("Palavra nao reconhecida.");
     return;
   }
@@ -1054,8 +1073,13 @@ function bindEvents() {
   $("#conexo-submit").addEventListener("click", submitConexo);
 }
 
-initTabs();
-initTerm();
-initContext();
-initConexo();
-bindEvents();
+async function initApp() {
+  await loadTermDictionary();
+  initTabs();
+  initTerm();
+  initContext();
+  initConexo();
+  bindEvents();
+}
+
+initApp();
