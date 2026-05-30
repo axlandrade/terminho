@@ -507,6 +507,11 @@ const TERM_ROWS = 6;
 const TERM_COLS = 5;
 const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
 const TERM_DICTIONARY_URL = "./data/portuguese-dictionary.json";
+const TERM_STORAGE_KEY = "terminho:termooo:daily:v1";
+const CONTEXT_STORAGE_KEY = "terminho:contexto:daily:v1";
+const CONEXO_STORAGE_KEY = "terminho:conexo:daily:v1";
+const TERM_DAY_ZERO = new Date(2024, 0, 1);
+let termAnswerWords = TERM_WORDS;
 let termValidGuesses = buildTermValidGuesses(TERM_GUESS_WORDS);
 
 const state = {
@@ -543,10 +548,52 @@ async function loadTermDictionary() {
       throw new Error("Dictionary payload must include a words array");
     }
 
+    termAnswerWords = buildTermAnswerWords(dictionary.words);
     termValidGuesses = buildTermValidGuesses(dictionary.words);
   } catch (error) {
     console.warn("Using fallback Termooo dictionary.", error);
   }
+}
+
+function buildTermAnswerWords(words) {
+  const normalizedWords = words
+    .map(normalize)
+    .filter((word) => word.length === TERM_COLS);
+  return [...new Set(normalizedWords)].sort();
+}
+
+function localDayKey(offset = 0) {
+  const now = new Date();
+  const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+  const year = day.getFullYear();
+  const month = String(day.getMonth() + 1).padStart(2, "0");
+  const date = String(day.getDate()).padStart(2, "0");
+  return `${year}-${month}-${date}`;
+}
+
+function daySeed(offset = 0) {
+  const now = new Date();
+  const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+  return Math.floor((day - TERM_DAY_ZERO) / 86400000);
+}
+
+function nextMidnightLabel() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const diff = Math.max(0, next - now);
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.ceil((diff % 3600000) / 60000);
+
+  if (hours <= 0) return `${minutes} min`;
+  return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
+}
+
+function pickDailyTermWord() {
+  return termAnswerWords[daySeed() % termAnswerWords.length];
+}
+
+function pickDaily(list) {
+  return list[daySeed() % list.length];
 }
 
 function randomIndex(length) {
@@ -563,10 +610,11 @@ function pickRandom(list) {
   return list[randomIndex(list.length)];
 }
 
-function shuffle(items, salt = 0) {
+function shuffle(items, salt = null) {
   const copy = [...items];
-  const saltNumber = Number.isFinite(salt) ? Math.trunc(Math.abs(salt)) : 0;
-  let seed = (randomIndex(233280) + saltNumber + 97) % 233280;
+  const hasSalt = Number.isFinite(salt);
+  const saltNumber = hasSalt ? Math.trunc(Math.abs(salt)) : randomIndex(233280);
+  let seed = (saltNumber + 97) % 233280;
   for (let index = copy.length - 1; index > 0; index -= 1) {
     seed = (seed * 9301 + 49297) % 233280;
     const swapIndex = seed % (index + 1);
@@ -607,14 +655,52 @@ function initTabs() {
 
 function initTerm() {
   state.term = {
-    answer: pickRandom(TERM_WORDS),
+    answer: pickDailyTermWord(),
+    dayKey: localDayKey(),
     guesses: [],
     current: "",
     done: false,
     keyStatus: {},
   };
 
+  restoreTermProgress();
   renderTerm();
+}
+
+function restoreTermProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TERM_STORAGE_KEY) || "null");
+    if (!saved || saved.dayKey !== state.term.dayKey) return;
+    if (saved.answer !== state.term.answer || !Array.isArray(saved.guesses)) return;
+
+    state.term.guesses = saved.guesses
+      .map(normalize)
+      .filter((guess) => guess.length === TERM_COLS)
+      .slice(0, TERM_ROWS);
+    state.term.keyStatus = buildTermKeyStatus(state.term.guesses, state.term.answer);
+    state.term.done =
+      state.term.guesses.includes(state.term.answer) ||
+      state.term.guesses.length >= TERM_ROWS ||
+      saved.done === true;
+  } catch {
+    localStorage.removeItem(TERM_STORAGE_KEY);
+  }
+}
+
+function saveTermProgress() {
+  try {
+    localStorage.setItem(
+      TERM_STORAGE_KEY,
+      JSON.stringify({
+        answer: state.term.answer,
+        dayKey: state.term.dayKey,
+        guesses: state.term.guesses,
+        done: state.term.done,
+      }),
+    );
+  } catch {
+    showToast("Nao consegui salvar o progresso neste navegador.");
+  }
 }
 
 function buildTermKeyStatus(guesses, answer) {
@@ -657,11 +743,11 @@ function renderTerm() {
 
   const status = $("#term-status");
   if (done && guesses.at(-1) === answer) {
-    status.textContent = `Acertou em ${guesses.length} tentativa${guesses.length === 1 ? "" : "s"}. Recarregue para sortear outra palavra.`;
+    status.textContent = `Acertou em ${guesses.length} tentativa${guesses.length === 1 ? "" : "s"}. Proxima palavra em ${nextMidnightLabel()}.`;
   } else if (done) {
-    status.textContent = `A palavra era ${answer}. Recarregue para sortear outra palavra.`;
+    status.textContent = `A palavra era ${answer}. Proxima palavra em ${nextMidnightLabel()}.`;
   } else {
-    status.textContent = "Tente descobrir a palavra sorteada.";
+    status.textContent = "Tente descobrir a palavra do dia.";
   }
 
   renderTermFeedback();
@@ -757,7 +843,7 @@ function evaluateGuess(guess, answer) {
 function handleTermInput(input) {
   const term = state.term;
   if (term.done) {
-    showToast("Rodada encerrada. Recarregue para sortear outra palavra.");
+    showToast("Acabou por hoje. Volte depois da 00:00.");
     return;
   }
 
@@ -808,6 +894,7 @@ function submitTermGuess() {
     term.done = true;
   }
 
+  saveTermProgress();
   renderTerm();
 }
 
@@ -829,15 +916,52 @@ function shareTerm() {
 }
 
 function initContext() {
-  const puzzle = pickRandom(CONTEXT_PUZZLES);
+  const puzzle = pickDaily(CONTEXT_PUZZLES);
   state.context = {
     puzzle,
+    dayKey: localDayKey(),
     guesses: [],
     done: false,
     hints: 0,
   };
   $("#context-input").value = "";
+  restoreContextProgress();
   renderContext();
+}
+
+function restoreContextProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CONTEXT_STORAGE_KEY) || "null");
+    if (!saved || saved.dayKey !== state.context.dayKey) return;
+    if (saved.target !== state.context.puzzle.target || !Array.isArray(saved.guesses)) return;
+
+    state.context.hints = Number.isInteger(saved.hints) ? Math.max(0, saved.hints) : 0;
+    state.context.guesses = saved.guesses
+      .map(normalize)
+      .filter(Boolean)
+      .map((guess) => scoreContextGuess(guess));
+    state.context.done =
+      saved.done === true || state.context.guesses.some((guess) => guess.heat === 100);
+  } catch {
+    localStorage.removeItem(CONTEXT_STORAGE_KEY);
+  }
+}
+
+function saveContextProgress() {
+  try {
+    localStorage.setItem(
+      CONTEXT_STORAGE_KEY,
+      JSON.stringify({
+        dayKey: state.context.dayKey,
+        target: state.context.puzzle.target,
+        guesses: state.context.guesses.map((guess) => guess.word),
+        done: state.context.done,
+        hints: state.context.hints,
+      }),
+    );
+  } catch {
+    showToast("Nao consegui salvar o progresso neste navegador.");
+  }
 }
 
 function scoreContextGuess(rawGuess) {
@@ -872,6 +996,11 @@ function heatLabel(heat) {
 
 function submitContext(event) {
   event.preventDefault();
+  if (state.context.done) {
+    showToast("Contexto de hoje encerrado. Volte depois da 00:00.");
+    return;
+  }
+
   const input = $("#context-input");
   const guess = normalize(input.value);
 
@@ -894,6 +1023,7 @@ function submitContext(event) {
     state.context.done = true;
   }
 
+  saveContextProgress();
   renderContext();
 }
 
@@ -906,12 +1036,16 @@ function renderContext() {
 
   const status = $("#context-status");
   if (context.done) {
-    status.textContent = `Boa. A palavra era ${context.puzzle.target}.`;
+    status.textContent = `Boa. A palavra era ${context.puzzle.target}. Proximo desafio em ${nextMidnightLabel()}.`;
   } else if (context.hints > 0) {
     status.textContent = context.puzzle.hint;
   } else {
-    status.textContent = "Aproxime-se da palavra secreta por associacao.";
+    status.textContent = "Aproxime-se da palavra secreta do dia por associacao.";
   }
+
+  $("#context-input").disabled = context.done;
+  $("#context-form button").disabled = context.done;
+  $("#context-hint").disabled = context.done;
 
   const list = $("#context-guesses");
   list.innerHTML = "";
@@ -928,12 +1062,14 @@ function renderContext() {
 }
 
 function showContextHint() {
+  if (state.context.done) return;
   state.context.hints += 1;
+  saveContextProgress();
   renderContext();
 }
 
 function initConexo() {
-  const puzzle = pickRandom(CONEXO_PUZZLES);
+  const puzzle = pickDaily(CONEXO_PUZZLES);
   const words = shuffle(
     puzzle.groups.flatMap((group, groupIndex) =>
       group.words.map((word) => ({
@@ -941,16 +1077,60 @@ function initConexo() {
         groupIndex,
       })),
     ),
+    daySeed(),
   );
   state.conexo = {
     puzzle,
+    dayKey: localDayKey(),
     words,
     selected: [],
     solved: [],
     mistakes: 0,
     done: false,
   };
+  restoreConexoProgress();
   renderConexo();
+}
+
+function restoreConexoProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CONEXO_STORAGE_KEY) || "null");
+    if (!saved || saved.dayKey !== state.conexo.dayKey) return;
+    if (!Array.isArray(saved.groupNames)) return;
+
+    const groupNames = state.conexo.puzzle.groups.map((group) => group.name);
+    if (saved.groupNames.join("|") !== groupNames.join("|")) return;
+
+    state.conexo.solved = Array.isArray(saved.solved)
+      ? saved.solved.filter((index) => Number.isInteger(index) && index >= 0 && index < 4)
+      : [];
+    state.conexo.mistakes = Number.isInteger(saved.mistakes)
+      ? Math.min(4, Math.max(0, saved.mistakes))
+      : 0;
+    state.conexo.done =
+      saved.done === true ||
+      state.conexo.solved.length === 4 ||
+      state.conexo.mistakes >= 4;
+  } catch {
+    localStorage.removeItem(CONEXO_STORAGE_KEY);
+  }
+}
+
+function saveConexoProgress() {
+  try {
+    localStorage.setItem(
+      CONEXO_STORAGE_KEY,
+      JSON.stringify({
+        dayKey: state.conexo.dayKey,
+        groupNames: state.conexo.puzzle.groups.map((group) => group.name),
+        solved: state.conexo.solved,
+        mistakes: state.conexo.mistakes,
+        done: state.conexo.done,
+      }),
+    );
+  } catch {
+    showToast("Nao consegui salvar o progresso neste navegador.");
+  }
 }
 
 function renderConexo() {
@@ -959,11 +1139,11 @@ function renderConexo() {
   const remaining = 4 - conexo.mistakes;
 
   if (conexo.solved.length === 4) {
-    status.textContent = "Todas as conexoes encontradas.";
+    status.textContent = `Todas as conexoes encontradas. Proximo desafio em ${nextMidnightLabel()}.`;
   } else if (remaining <= 0) {
-    status.textContent = "Fim de jogo. Revelei os grupos abaixo.";
+    status.textContent = `Fim de jogo. Revelei os grupos abaixo. Proximo desafio em ${nextMidnightLabel()}.`;
   } else {
-    status.textContent = "Selecione 4 palavras que tenham algo em comum.";
+    status.textContent = "Selecione 4 palavras do desafio diario que tenham algo em comum.";
   }
 
   const mistakes = $("#conexo-mistakes");
@@ -1041,6 +1221,7 @@ function submitConexo() {
   }
 
   conexo.done = conexo.solved.length === 4 || conexo.mistakes >= 4;
+  saveConexoProgress();
   renderConexo();
 }
 
@@ -1066,9 +1247,7 @@ function bindEvents() {
 
   $("#term-share").addEventListener("click", shareTerm);
   $("#context-form").addEventListener("submit", submitContext);
-  $("#context-reset").addEventListener("click", () => initContext());
   $("#context-hint").addEventListener("click", showContextHint);
-  $("#conexo-reset").addEventListener("click", () => initConexo());
   $("#conexo-shuffle").addEventListener("click", shuffleConexo);
   $("#conexo-submit").addEventListener("click", submitConexo);
 }

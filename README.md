@@ -7,7 +7,7 @@ Minijogos de palavras em portugues para jogar a dois:
 - **Conexo**: encontre 4 grupos de 4 palavras conectadas.
 
 O projeto e estatico, sem backend e sem dependencias de build. Isso deixa o deploy gratuito bem simples.
-A cada recarregamento, os jogos sorteiam novos desafios aleatorios.
+Os tres jogos usam um desafio por dia e salvam o progresso no navegador.
 
 O dicionario do Termooo fica em `data/portuguese-dictionary.json`, gerado a partir da lista
 `br-sem-acentos.txt` do IME-USP, licenciada em CC BY:
