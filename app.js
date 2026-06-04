@@ -994,6 +994,14 @@ function heatLabel(heat) {
   return "gelado";
 }
 
+function sortContextGuesses(guesses) {
+  return [...guesses].sort((left, right) => {
+    if (left.rank !== right.rank) return left.rank - right.rank;
+    if (left.heat !== right.heat) return right.heat - left.heat;
+    return left.word.localeCompare(right.word);
+  });
+}
+
 function submitContext(event) {
   event.preventDefault();
   if (state.context.done) {
@@ -1049,7 +1057,7 @@ function renderContext() {
 
   const list = $("#context-guesses");
   list.innerHTML = "";
-  context.guesses.forEach((guess) => {
+  sortContextGuesses(context.guesses).forEach((guess) => {
     const item = document.createElement("li");
     item.className = "context-guess";
     item.innerHTML = `
