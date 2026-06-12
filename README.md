@@ -5,9 +5,10 @@ Minijogos de palavras em portugues para jogar a dois:
 - **Termooo**: descubra a palavra de 5 letras.
 - **Contexto**: tente chegar na palavra secreta por associacao.
 - **Conexo**: encontre 4 grupos de 4 palavras conectadas.
+- **Quem Sou Eu**: descubra a pessoa, lugar, objeto ou ideia por dicas progressivas.
 
 O projeto e estatico, sem backend e sem dependencias de build. Isso deixa o deploy gratuito bem simples.
-Os tres jogos usam um desafio por dia e salvam o progresso no navegador.
+Todos os jogos usam um desafio por dia e salvam o progresso no navegador.
 
 O dicionario do Termooo fica em `data/portuguese-dictionary.json`, gerado a partir da lista
 `br-sem-acentos.txt` do IME-USP, licenciada em CC BY:
@@ -54,6 +55,5 @@ Para GitHub Pages:
 ## Proximos passos bons
 
 - Aumentar as listas de palavras e desafios.
-- Adicionar modo "desafio do casal" com uma palavra escolhida por voces.
 - Salvar placares no navegador com `localStorage`.
-- Criar compartilhamento bonito para Contexto e Conexo.
+- Criar compartilhamento bonito para Contexto, Conexo e Quem Sou Eu.

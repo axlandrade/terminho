@@ -503,6 +503,81 @@ const CONEXO_PUZZLES = [
   },
 ];
 
+const WHO_PUZZLES = [
+  {
+    answer: "ALBERT EINSTEIN",
+    aliases: ["EINSTEIN"],
+    category: "Pessoa",
+    hints: [
+      "Mudei a forma como a ciencia entende espaco, tempo e gravidade.",
+      "Meu trabalho mais famoso envolve relatividade.",
+      "Ganhei um Nobel, mas nao foi pela teoria que costuma levar meu nome.",
+      "Minha imagem ficou marcada por cabelo branco baguncado.",
+      "Meu primeiro nome e Albert.",
+    ],
+  },
+  {
+    answer: "PIX",
+    aliases: ["PAGAMENTO PIX"],
+    category: "Tecnologia",
+    hints: [
+      "Sou usado no Brasil quase todos os dias.",
+      "Funciono a qualquer hora, inclusive fins de semana.",
+      "Posso usar chave, QR code ou copia e cola.",
+      "Substitui muito TED, DOC e dinheiro vivo.",
+      "Tenho tres letras.",
+    ],
+  },
+  {
+    answer: "MACHU PICCHU",
+    aliases: ["MACHU PICCHU", "MACHUPICCHU"],
+    category: "Lugar",
+    hints: [
+      "Fico em uma regiao alta e montanhosa da America do Sul.",
+      "Sou uma construcao antiga que atrai visitantes do mundo inteiro.",
+      "Tenho ligacao com a civilizacao inca.",
+      "Meu pais e o Peru.",
+      "Meu nome costuma aparecer em listas de maravilhas do mundo.",
+    ],
+  },
+  {
+    answer: "CAFETEIRA",
+    aliases: ["MAQUINA DE CAFE", "CAFETEIRA ELETRICA"],
+    category: "Objeto",
+    hints: [
+      "Costumo acordar a casa antes de muita gente funcionar direito.",
+      "Posso viver na cozinha, no escritorio ou numa copa pequena.",
+      "Algumas usam filtro, outras capsula ou pressao.",
+      "Meu resultado costuma sair quente e com aroma forte.",
+      "Meu nome vem da bebida que preparo.",
+    ],
+  },
+  {
+    answer: "SATURNO",
+    aliases: ["PLANETA SATURNO"],
+    category: "Espaco",
+    hints: [
+      "Sou enorme, mas nao sou o maior da minha vizinhanca.",
+      "Meu visual e muito reconhecivel mesmo de longe.",
+      "Tenho aneis formados por gelo, poeira e rochas.",
+      "Sou um planeta gasoso.",
+      "Meu nome tambem vem da mitologia romana.",
+    ],
+  },
+  {
+    answer: "GITHUB",
+    aliases: ["GIT HUB"],
+    category: "Tecnologia",
+    hints: [
+      "Sou uma casa comum para projetos de software.",
+      "Trabalho muito bem com branches, pull requests e issues.",
+      "Muita gente me usa para publicar codigo aberto.",
+      "Meu nome junta uma ferramenta de versionamento com uma ideia de central.",
+      "Este projeto provavelmente vai morar em mim.",
+    ],
+  },
+];
+
 const TERM_ROWS = 6;
 const TERM_COLS = 5;
 const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
@@ -511,6 +586,8 @@ const DAILY_RANDOM_VERSION = "v2";
 const TERM_STORAGE_KEY = `terminho:termooo:daily:${DAILY_RANDOM_VERSION}`;
 const CONTEXT_STORAGE_KEY = `terminho:contexto:daily:${DAILY_RANDOM_VERSION}`;
 const CONEXO_STORAGE_KEY = `terminho:conexo:daily:${DAILY_RANDOM_VERSION}`;
+const WHO_STORAGE_KEY = `terminho:quem-sou-eu:daily:${DAILY_RANDOM_VERSION}`;
+const WHO_MAX_GUESSES = 5;
 let termAnswerWords = TERM_WORDS;
 let termValidGuesses = buildTermValidGuesses(TERM_GUESS_WORDS);
 
@@ -519,6 +596,7 @@ const state = {
   term: null,
   context: null,
   conexo: null,
+  who: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -529,6 +607,16 @@ function normalize(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z]/g, "")
+    .toUpperCase();
+}
+
+function normalizeReadable(value) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
     .toUpperCase();
 }
 
@@ -659,7 +747,7 @@ function initTabs() {
   });
 
   const initial = window.location.hash.replace("#", "");
-  if (["termooo", "contexto", "conexo"].includes(initial)) {
+  if (["termooo", "contexto", "conexo", "quem-sou-eu"].includes(initial)) {
     switchGame(initial);
   }
 }
@@ -1250,6 +1338,165 @@ function shuffleConexo() {
   renderConexo();
 }
 
+function initWho() {
+  const puzzle = pickDaily(WHO_PUZZLES, "quem-sou-eu");
+  state.who = {
+    puzzle,
+    dayKey: localDayKey(),
+    guesses: [],
+    revealedHints: 1,
+    done: false,
+  };
+  $("#who-input").value = "";
+  restoreWhoProgress();
+  renderWho();
+}
+
+function restoreWhoProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WHO_STORAGE_KEY) || "null");
+    if (!saved || saved.dayKey !== state.who.dayKey) return;
+    if (saved.answer !== state.who.puzzle.answer || !Array.isArray(saved.guesses)) return;
+
+    state.who.guesses = saved.guesses
+      .map((guess) => {
+        if (typeof guess === "string") {
+          return { value: normalize(guess), label: normalizeReadable(guess) || normalize(guess) };
+        }
+
+        return {
+          value: normalize(guess?.value || guess?.label || ""),
+          label: normalizeReadable(guess?.label || guess?.value || ""),
+        };
+      })
+      .filter((guess) => guess.value)
+      .slice(0, WHO_MAX_GUESSES);
+    state.who.revealedHints = Math.min(
+      state.who.puzzle.hints.length,
+      Math.max(1, Number.isInteger(saved.revealedHints) ? saved.revealedHints : 1),
+    );
+    state.who.done =
+      saved.done === true ||
+      state.who.guesses.some((guess) => isWhoCorrect(guess.value)) ||
+      state.who.guesses.length >= WHO_MAX_GUESSES;
+  } catch {
+    localStorage.removeItem(WHO_STORAGE_KEY);
+  }
+}
+
+function saveWhoProgress() {
+  try {
+    localStorage.setItem(
+      WHO_STORAGE_KEY,
+      JSON.stringify({
+        dayKey: state.who.dayKey,
+        answer: state.who.puzzle.answer,
+        guesses: state.who.guesses,
+        revealedHints: state.who.revealedHints,
+        done: state.who.done,
+      }),
+    );
+  } catch {
+    showToast("Nao consegui salvar o progresso neste navegador.");
+  }
+}
+
+function whoAnswers(puzzle = state.who.puzzle) {
+  return [puzzle.answer, ...(puzzle.aliases || [])].map(normalize);
+}
+
+function isWhoCorrect(guess) {
+  return whoAnswers().includes(normalize(guess));
+}
+
+function submitWho(event) {
+  event.preventDefault();
+  const who = state.who;
+  if (who.done) {
+    showToast("Quem Sou Eu de hoje encerrado. Volte depois da 00:00.");
+    return;
+  }
+
+  const input = $("#who-input");
+  const guess = {
+    value: normalize(input.value),
+    label: normalizeReadable(input.value),
+  };
+  if (!guess.value) {
+    showToast("Digite um palpite.");
+    return;
+  }
+
+  if (who.guesses.some((item) => item.value === guess.value)) {
+    showToast("Esse ja foi.");
+    input.value = "";
+    return;
+  }
+
+  who.guesses.push(guess);
+  input.value = "";
+
+  if (isWhoCorrect(guess.value) || who.guesses.length >= WHO_MAX_GUESSES) {
+    who.done = true;
+  } else {
+    who.revealedHints = Math.min(who.puzzle.hints.length, who.revealedHints + 1);
+  }
+
+  saveWhoProgress();
+  renderWho();
+}
+
+function showWhoHint() {
+  const who = state.who;
+  if (who.done) return;
+  if (who.revealedHints >= who.puzzle.hints.length) {
+    showToast("Todas as dicas ja apareceram.");
+    return;
+  }
+
+  who.revealedHints += 1;
+  saveWhoProgress();
+  renderWho();
+}
+
+function renderWho() {
+  const who = state.who;
+  const won = who.guesses.some((guess) => isWhoCorrect(guess.value));
+  const remaining = Math.max(0, WHO_MAX_GUESSES - who.guesses.length);
+
+  $("#who-category").textContent = who.puzzle.category;
+
+  const status = $("#who-status");
+  if (won) {
+    status.textContent = `Acertou: ${who.puzzle.answer}. Proximo desafio em ${nextMidnightLabel()}.`;
+  } else if (who.done) {
+    status.textContent = `Fim de jogo. Era ${who.puzzle.answer}. Proximo desafio em ${nextMidnightLabel()}.`;
+  } else {
+    status.textContent = `${remaining} tentativa${remaining === 1 ? "" : "s"} restante${remaining === 1 ? "" : "s"}.`;
+  }
+
+  const hints = $("#who-hints");
+  hints.innerHTML = "";
+  who.puzzle.hints.slice(0, who.revealedHints).forEach((hint) => {
+    const item = document.createElement("li");
+    item.textContent = hint;
+    hints.append(item);
+  });
+
+  const guesses = $("#who-guesses");
+  guesses.innerHTML = "";
+  who.guesses.forEach((guess) => {
+    const item = document.createElement("li");
+    item.className = isWhoCorrect(guess.value) ? "is-correct" : "";
+    item.textContent = guess.label || guess.value;
+    guesses.append(item);
+  });
+
+  $("#who-input").disabled = who.done;
+  $("#who-form button").disabled = who.done;
+  $("#who-hint").disabled = who.done || who.revealedHints >= who.puzzle.hints.length;
+}
+
 function bindEvents() {
   document.addEventListener("keydown", (event) => {
     if (state.currentGame !== "termooo") return;
@@ -1269,6 +1516,8 @@ function bindEvents() {
   $("#context-hint").addEventListener("click", showContextHint);
   $("#conexo-shuffle").addEventListener("click", shuffleConexo);
   $("#conexo-submit").addEventListener("click", submitConexo);
+  $("#who-form").addEventListener("submit", submitWho);
+  $("#who-hint").addEventListener("click", showWhoHint);
 }
 
 async function initApp() {
@@ -1277,6 +1526,7 @@ async function initApp() {
   initTerm();
   initContext();
   initConexo();
+  initWho();
   bindEvents();
 }
 

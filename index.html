@@ -24,6 +24,9 @@
           </button>
           <button class="tab" type="button" data-game="contexto">Contexto</button>
           <button class="tab" type="button" data-game="conexo">Conexo</button>
+          <button class="tab" type="button" data-game="quem-sou-eu">
+            Quem Sou Eu
+          </button>
         </nav>
       </header>
 
@@ -99,6 +102,38 @@
           <div class="solved-groups" id="conexo-solved"></div>
           <div class="connection-grid" id="conexo-grid" aria-label="Palavras do Conexo"></div>
           <button class="primary-action" type="button" id="conexo-submit">Conferir grupo</button>
+        </section>
+
+        <section class="game-view" id="quem-sou-eu" data-view="quem-sou-eu">
+          <div class="game-heading">
+            <div>
+              <p class="eyebrow">Dicas progressivas</p>
+              <h1>Quem Sou Eu</h1>
+            </div>
+            <div class="toolbar" aria-label="Controles do Quem Sou Eu">
+              <button class="icon-button" type="button" id="who-hint" title="Nova dica">
+                <span aria-hidden="true">?</span>
+              </button>
+            </div>
+          </div>
+          <div class="status-line" id="who-status" role="status"></div>
+          <div class="who-stage">
+            <div class="who-card" aria-live="polite">
+              <span class="who-category" id="who-category"></span>
+              <ol class="who-hints" id="who-hints"></ol>
+            </div>
+            <form class="guess-form" id="who-form">
+              <input
+                id="who-input"
+                type="text"
+                autocomplete="off"
+                placeholder="Quem ou o que e?"
+                aria-label="Palpite do Quem Sou Eu"
+              />
+              <button type="submit">Enviar</button>
+            </form>
+          </div>
+          <ul class="who-guesses" id="who-guesses" aria-label="Palpites do Quem Sou Eu"></ul>
         </section>
       </main>
     </div>
