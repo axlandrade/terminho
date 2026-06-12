@@ -583,10 +583,10 @@ const TERM_COLS = 5;
 const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
 const TERM_DICTIONARY_URL = "./data/portuguese-dictionary.json";
 const DAILY_RANDOM_VERSION = "v2";
-const TERM_STORAGE_KEY = `terminho:termooo:daily:${DAILY_RANDOM_VERSION}`;
-const CONTEXT_STORAGE_KEY = `terminho:contexto:daily:${DAILY_RANDOM_VERSION}`;
-const CONEXO_STORAGE_KEY = `terminho:conexo:daily:${DAILY_RANDOM_VERSION}`;
-const WHO_STORAGE_KEY = `terminho:quem-sou-eu:daily:${DAILY_RANDOM_VERSION}`;
+const TERM_STORAGE_KEY = `palpiteiro:termooo:daily:${DAILY_RANDOM_VERSION}`;
+const CONTEXT_STORAGE_KEY = `palpiteiro:contexto:daily:${DAILY_RANDOM_VERSION}`;
+const CONEXO_STORAGE_KEY = `palpiteiro:conexo:daily:${DAILY_RANDOM_VERSION}`;
+const WHO_STORAGE_KEY = `palpiteiro:quem-sou-eu:daily:${DAILY_RANDOM_VERSION}`;
 const WHO_MAX_GUESSES = 5;
 let termAnswerWords = TERM_WORDS;
 let termValidGuesses = buildTermValidGuesses(TERM_GUESS_WORDS);
@@ -1006,7 +1006,7 @@ function shareTerm() {
         .join(""),
     )
     .join("\n");
-  const text = `Terminho Termooo ${term.guesses.length}/${TERM_ROWS}\n${rows}`;
+  const text = `Palpiteiro Termooo ${term.guesses.length}/${TERM_ROWS}\n${rows}`;
 
   navigator.clipboard
     ?.writeText(text)

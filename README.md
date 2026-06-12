@@ -1,6 +1,6 @@
-# Terminho
+# Palpiteiro
 
-Minijogos de palavras em portugues para jogar a dois:
+Desafios diarios de palavras, associacao e deducao em portugues:
 
 - **Termooo**: descubra a palavra de 5 letras.
 - **Contexto**: tente chegar na palavra secreta por associacao.
@@ -46,7 +46,7 @@ Opcoes simples:
 
 Para GitHub Pages:
 
-1. Crie um repo chamado `terminho`.
+1. Crie um repo chamado `palpiteiro`.
 2. Envie estes arquivos para a branch `main`.
 3. No GitHub, abra `Settings` > `Pages`.
 4. Em `Build and deployment`, selecione `Deploy from a branch`.
