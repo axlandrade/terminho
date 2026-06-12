@@ -507,10 +507,10 @@ const TERM_ROWS = 6;
 const TERM_COLS = 5;
 const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
 const TERM_DICTIONARY_URL = "./data/portuguese-dictionary.json";
-const TERM_STORAGE_KEY = "terminho:termooo:daily:v1";
-const CONTEXT_STORAGE_KEY = "terminho:contexto:daily:v1";
-const CONEXO_STORAGE_KEY = "terminho:conexo:daily:v1";
-const TERM_DAY_ZERO = new Date(2024, 0, 1);
+const DAILY_RANDOM_VERSION = "v2";
+const TERM_STORAGE_KEY = `terminho:termooo:daily:${DAILY_RANDOM_VERSION}`;
+const CONTEXT_STORAGE_KEY = `terminho:contexto:daily:${DAILY_RANDOM_VERSION}`;
+const CONEXO_STORAGE_KEY = `terminho:conexo:daily:${DAILY_RANDOM_VERSION}`;
 let termAnswerWords = TERM_WORDS;
 let termValidGuesses = buildTermValidGuesses(TERM_GUESS_WORDS);
 
@@ -571,10 +571,21 @@ function localDayKey(offset = 0) {
   return `${year}-${month}-${date}`;
 }
 
-function daySeed(offset = 0) {
-  const now = new Date();
-  const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
-  return Math.floor((day - TERM_DAY_ZERO) / 86400000);
+function hashString(value) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function dailyRandomSeed(scope, offset = 0) {
+  return hashString(`${DAILY_RANDOM_VERSION}:${scope}:${localDayKey(offset)}`);
+}
+
+function dailyRandomIndex(scope, length, offset = 0) {
+  return dailyRandomSeed(scope, offset) % length;
 }
 
 function nextMidnightLabel() {
@@ -589,11 +600,11 @@ function nextMidnightLabel() {
 }
 
 function pickDailyTermWord() {
-  return termAnswerWords[daySeed() % termAnswerWords.length];
+  return termAnswerWords[dailyRandomIndex("termooo", termAnswerWords.length)];
 }
 
-function pickDaily(list) {
-  return list[daySeed() % list.length];
+function pickDaily(list, scope) {
+  return list[dailyRandomIndex(scope, list.length)];
 }
 
 function randomIndex(length) {
@@ -916,7 +927,7 @@ function shareTerm() {
 }
 
 function initContext() {
-  const puzzle = pickDaily(CONTEXT_PUZZLES);
+  const puzzle = pickDaily(CONTEXT_PUZZLES, "contexto");
   state.context = {
     puzzle,
     dayKey: localDayKey(),
@@ -1077,7 +1088,7 @@ function showContextHint() {
 }
 
 function initConexo() {
-  const puzzle = pickDaily(CONEXO_PUZZLES);
+  const puzzle = pickDaily(CONEXO_PUZZLES, "conexo");
   const words = shuffle(
     puzzle.groups.flatMap((group, groupIndex) =>
       group.words.map((word) => ({
@@ -1085,7 +1096,7 @@ function initConexo() {
         groupIndex,
       })),
     ),
-    daySeed(),
+    dailyRandomSeed("conexo-grid"),
   );
   state.conexo = {
     puzzle,
